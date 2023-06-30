@@ -21,6 +21,7 @@
 
         <StackPanel Orientation="Horizontal" Margin="10">
             <Button Content="Process Image" Click="ProcessImage_Click"   HorizontalAlignment="Left" Padding="12,2" />
+            <Button Content="Save Processed Image" x:Name="saveOutput" Click="SaveOutput_OnClick"   HorizontalAlignment="Left" Padding="12,2" Margin="10,0,0,0" />
             <TextBlock Text="Status:" Margin="15,0,0,0" FontWeight="SemiBold" FontSize="14"/>
             <TextBlock Text="Choose File" x:Name="statusBox" Margin="5,0,0,0"  FontSize="14"/>
         </StackPanel>

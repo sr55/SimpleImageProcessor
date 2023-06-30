@@ -6,7 +6,6 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
@@ -15,14 +14,19 @@ namespace ImageProcessor
 {
     public partial class MainWindow : Window
     {
+        private BitmapImage? processedImage; 
+
         public MainWindow()
         {
             InitializeComponent();
+            this.saveOutput.IsEnabled = false;
         }
 
         private void ProcessImage_Click(object sender, RoutedEventArgs e)
         {
             this.afterImage.Source = null;
+            this.processedImage = null;
+            this.saveOutput.IsEnabled = false;
             this.Log.Clear();
 
             OpenFileDialog fileDialog = new OpenFileDialog();
@@ -56,8 +60,13 @@ namespace ImageProcessor
 
         private void WorkCallback(object? sender, RunWorkerCompletedEventArgs e)
         {
-            afterImage.Source = (BitmapImage)e.Result!;
-            this.statusBox.Text = string.Format("Done, Last Run at: {0:HH:mm:ss}", DateTime.Now);
+            if (e.Result is BitmapImage image)
+            {
+                afterImage.Source = image;
+                this.statusBox.Text = string.Format("Done, Last Run at: {0:HH:mm:ss}", DateTime.Now);
+                this.saveOutput.IsEnabled = true;
+                processedImage = image;
+            }
         }
         
         private BitmapImage? ProcessImage(string filename)
@@ -209,9 +218,46 @@ namespace ImageProcessor
             ThreadHelper.OnUIThread(() =>
             {
                 Debug.WriteLine(message);
-                this.Log.AppendText(string.Format("[{0}], {1} {2}", DateTime.Now.ToString("HH:mm:ss"), message, Environment.NewLine));
+                this.Log.AppendText(string.Format("[{0}] {1} {2}", DateTime.Now.ToString("HH:mm:ss"), message, Environment.NewLine));
                 this.Log.ScrollToEnd();
             });
+        }
+
+        private void SaveOutput_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (processedImage != null)
+            {
+                SaveFileDialog fileDialog = new SaveFileDialog();
+                fileDialog.Filter = "PNG|*.png|JPG|*.jpg";
+                fileDialog.DefaultExt = "PNG|*.png";
+                if (fileDialog.ShowDialog() == true)
+                {
+                    var extension = Path.GetExtension(fileDialog.FileName);
+
+                    BitmapEncoder encoder;
+                    switch (extension.ToLower())
+                    {
+                        case ".jpg":
+                            encoder = new JpegBitmapEncoder();
+                            break;
+                        case ".png":
+                            encoder = new PngBitmapEncoder();
+                            break;
+                        default:
+                            MessageBox.Show("Invalid File Extension. Aborting.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return;
+                    }
+
+                    encoder.Frames.Add(BitmapFrame.Create(processedImage));
+
+                    using (var fileStream = new FileStream(fileDialog.FileName, FileMode.Create))
+                    {
+                        encoder.Save(fileStream);
+                        LogMessage("File Saved: " + fileDialog.FileName);
+                    }
+                }
+            }
+
         }
     }
 }
