@@ -39,7 +39,7 @@ namespace ImageProcessor
 
                 BackgroundWorker worker = new BackgroundWorker();
                 worker.DoWork += Worker_DoWork;
-                worker.RunWorkerCompleted += (sender, args) => WorkCallback(sender, args);
+                worker.RunWorkerCompleted += WorkCallback;
                 worker.RunWorkerAsync(fileDialog.FileName);
 
             }
@@ -47,19 +47,26 @@ namespace ImageProcessor
 
         private void Worker_DoWork(object? sender, DoWorkEventArgs e)
         {
-            var result = this.ProcessImage((string)e.Argument);
-            e.Result = result;
+            if (e.Argument is string argument)
+            {
+                var result = this.ProcessImage(argument);
+                e.Result = result;
+            }
         }
 
-        private void WorkCallback(object sender, RunWorkerCompletedEventArgs e)
+        private void WorkCallback(object? sender, RunWorkerCompletedEventArgs e)
         {
-            afterImage.Source = (BitmapImage)e.Result;
-            this.statusBox.Text = string.Format("Done, Last Run at: {0}", DateTime.Now.ToString("HH:mm:ss"));
+            afterImage.Source = (BitmapImage)e.Result!;
+            this.statusBox.Text = string.Format("Done, Last Run at: {0:HH:mm:ss}", DateTime.Now);
         }
-
         
-        private BitmapImage ProcessImage(string filename)
+        private BitmapImage? ProcessImage(string filename)
         {
+            if (string.IsNullOrEmpty(filename))
+            {
+                return null;
+            }
+
             Stopwatch watch = Stopwatch.StartNew();
             Bitmap bmp = new Bitmap(filename);
 
@@ -136,7 +143,7 @@ namespace ImageProcessor
             }
 
             watch.Stop();
-            LogMessage(string.Format("Processing Complete! Took {0} s", Math.Round((double)watch.ElapsedMilliseconds / 1000,2)));
+            LogMessage($"Processing Complete! Took {Math.Round((double)watch.ElapsedMilliseconds / 1000, 2)} s");
 
             ThreadHelper.OnUIThread(() =>
             {
@@ -146,7 +153,7 @@ namespace ImageProcessor
             return CreateFinalBitmap(outputImage.ToArray(), bmpData.Width, (bmpData.Height - rowsRemoved));
         }
 
-        private BitmapImage CreateFinalBitmap(byte[] buffer, int width, int height)
+        private BitmapImage? CreateFinalBitmap(byte[] buffer, int width, int height)
         {
             Bitmap b = new Bitmap(width, height, PixelFormat.Format24bppRgb);
 
@@ -165,11 +172,11 @@ namespace ImageProcessor
             Marshal.Copy(newBuff, 0, ptr, newBuff.Length);
             b.UnlockBits(bmpData);
 
-            BitmapImage result = ToBitmapImage(b);
+            BitmapImage? result = ToBitmapImage(b);
             return result;
         }
 
-        public static BitmapImage ToBitmapImage(Bitmap bitmap)
+        public static BitmapImage? ToBitmapImage(Bitmap bitmap)
         {
             using (var memory = new MemoryStream())
             {
